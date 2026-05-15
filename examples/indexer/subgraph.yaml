@@ -1,0 +1,33 @@
+specVersion: 1.0.0
+description: Indexes ProofRegistered events from ValidocusProofRegistry on Avalanche.
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: ValidocusProofRegistry
+    # Switch network to `avalanche` for mainnet. `fuji` is the testnet alias used
+    # by hosted-service / The Graph Network for Avalanche Fuji.
+    network: avalanche
+    source:
+      address: "0xREPLACE_ME_WITH_DEPLOYED_ADDRESS"
+      abi: ValidocusProofRegistry
+      # Set this to the block number of the deploy tx to skip irrelevant history.
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ./src/mapping.ts
+      entities:
+        - Proof
+        - Signer
+      abis:
+        - name: ValidocusProofRegistry
+          file: ./abis/ValidocusProofRegistry.json
+      eventHandlers:
+        - event: ProofRegistered(indexed bytes32,indexed address,uint64,string)
+          handler: handleProofRegistered
+        - event: SignerAuthorized(indexed address)
+          handler: handleSignerAuthorized
+        - event: SignerRevoked(indexed address)
+          handler: handleSignerRevoked

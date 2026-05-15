@@ -1,0 +1,41 @@
+{
+  "name": "validocus-proof-contracts",
+  "version": "1.0.0",
+  "description": "Public, permissionless on-chain notary for document SHA-256 proofs. Deployed on Avalanche C-Chain.",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:coverage": "hardhat coverage",
+    "deploy:fuji": "hardhat run scripts/deploy.ts --network fuji",
+    "deploy:avalanche": "hardhat run scripts/deploy.ts --network avalanche",
+    "verify:fuji": "hardhat verify --network fuji",
+    "verify:avalanche": "hardhat verify --network avalanche",
+    "anchor:example": "hardhat run scripts/anchor-example.ts --network fuji",
+    "script": "hardhat run",
+    "transfer-ownership:fuji": "hardhat run scripts/transfer-ownership.ts --network fuji",
+    "transfer-ownership:avalanche": "hardhat run scripts/transfer-ownership.ts --network avalanche",
+    "node": "hardhat node",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.10",
+    "@openzeppelin/contracts": "^5.0.2",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai": "^4.3.16",
+    "@types/mocha": "^10.0.7",
+    "@types/node": "^20.14.10",
+    "chai": "^4.4.1",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.1",
+    "hardhat": "^2.22.6",
+    "hardhat-gas-reporter": "^2.2.0",
+    "solidity-coverage": "^0.8.12",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.5.3"
+  }
+}

@@ -1,0 +1,28 @@
+node_modules/
+.env
+.env.local
+
+# Hardhat
+cache/
+artifacts/
+typechain-types/
+coverage/
+coverage.json
+
+# Deployment artifacts (keep only example deployments tracked)
+deployments/local/
+deployments/hardhat/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build outputs
+dist/
+build/

@@ -1,0 +1,24 @@
+# GraphQL schema for the ValidocusProofRegistry subgraph.
+#
+# Each `Proof` represents a global anchor of a document hash (one per
+# documentHash; the contract enforces uniqueness). `Signer` tracks the
+# current authorization status of each wallet.
+
+type Proof @entity(immutable: true) {
+  # ID is the documentHash (bytes32 hex) — unique globally.
+  id: ID!
+  documentHash: Bytes!
+  sender: Bytes!               # wallet that anchored
+  timestamp: BigInt!           # block timestamp (unix seconds)
+  metadata: String!            # raw metadata payload (may be empty)
+  blockNumber: BigInt!
+  txHash: Bytes!
+}
+
+type Signer @entity {
+  # ID is the wallet address (lowercased hex).
+  id: ID!
+  authorized: Boolean!
+  authorizedAt: BigInt
+  revokedAt: BigInt
+}

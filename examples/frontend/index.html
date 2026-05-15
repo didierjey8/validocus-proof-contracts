@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Validocus Proof — On-chain document verifier</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --fg: #e7ecf3;
+      --muted: #8aa0bf;
+      --accent: #34d399;
+      --warn: #fbbf24;
+      --bad: #f87171;
+      --card: #131a32;
+      --border: #25304d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px;
+    }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .subtitle { color: var(--muted); margin-bottom: 24px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      width: min(720px, 100%);
+      margin-bottom: 16px;
+    }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0d1429;
+      color: var(--fg);
+      font: inherit;
+    }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 200px; }
+    .drop {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .drop.hover { border-color: var(--accent); background: #0e1a30; color: var(--fg); }
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; word-break: break-all; }
+    .kv b { color: var(--muted); font-weight: 500; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge.ok   { background: rgba(52,211,153,.15); color: var(--accent); }
+    .badge.warn { background: rgba(251,191,36,.15); color: var(--warn); }
+    .badge.bad  { background: rgba(248,113,113,.15); color: var(--bad); }
+    code { background: #0d1429; padding: 2px 6px; border-radius: 4px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <h1>Validocus Proof</h1>
+  <div class="subtitle">Drop a file. Get an on-chain proof. No backend.</div>
+
+  <div class="card">
+    <div class="row">
+      <div>
+        <label for="network">Network</label>
+        <select id="network">
+          <option value="fuji">Avalanche Fuji (testnet, chainId 43113)</option>
+          <option value="avalanche">Avalanche C-Chain (mainnet, chainId 43114)</option>
+        </select>
+      </div>
+      <div>
+        <label for="contract">Contract address</label>
+        <input id="contract" placeholder="0x..." />
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div id="drop" class="drop">
+      Drag &amp; drop a file here, or click to select.
+      <br/><span class="muted">The file never leaves your browser — only its SHA-256 hash is sent.</span>
+      <input id="file" type="file" style="display:none" />
+    </div>
+  </div>
+
+  <div class="card" id="result" style="display:none;">
+    <div class="kv">
+      <b>File name</b><span id="r-name"></span>
+      <b>Size</b><span id="r-size"></span>
+      <b>SHA-256</b><code id="r-hash"></code>
+      <b>Status</b><span id="r-status"></span>
+      <b>Anchored by</b><span id="r-sender"></span>
+      <b>Anchored at</b><span id="r-when"></span>
+      <b>Metadata</b><span id="r-metadata"></span>
+      <b>Trust seal</b><span id="r-seal"></span>
+    </div>
+  </div>
+
+  <!-- ethers v6 UMD bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.1/dist/ethers.umd.min.js"></script>
+  <script>
+    const RPC = {
+      fuji:      'https://api.avax-test.network/ext/bc/C/rpc',
+      avalanche: 'https://api.avax.network/ext/bc/C/rpc',
+    };
+    const EXPLORER = {
+      fuji:      'https://testnet.snowtrace.io',
+      avalanche: 'https://snowtrace.io',
+    };
+
+    const ABI = [
+      'function verify(bytes32) view returns (tuple(address sender, uint64 timestamp, string metadata))',
+      'function exists(bytes32) view returns (bool)',
+      'function isValidocusVerified(bytes32) view returns (bool)',
+      'function totalProofs() view returns (uint256)',
+    ];
+
+    const drop = document.getElementById('drop');
+    const fileInput = document.getElementById('file');
+    drop.addEventListener('click', () => fileInput.click());
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('hover'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('hover'));
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      drop.classList.remove('hover');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length) handleFile(fileInput.files[0]);
+    });
+
+    async function sha256Hex(buffer) {
+      const digest = await crypto.subtle.digest('SHA-256', buffer);
+      return '0x' + Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    function shortAddr(a) {
+      return a.slice(0, 6) + '…' + a.slice(-4);
+    }
+
+    async function handleFile(file) {
+      const network = document.getElementById('network').value;
+      const contractAddr = document.getElementById('contract').value.trim();
+
+      if (!contractAddr) {
+        alert('Set a contract address first.');
+        return;
+      }
+
+      const buf = await file.arrayBuffer();
+      const hash = await sha256Hex(buf);
+
+      document.getElementById('r-name').textContent = file.name;
+      document.getElementById('r-size').textContent = file.size.toLocaleString() + ' bytes';
+      document.getElementById('r-hash').textContent = hash;
+      document.getElementById('result').style.display = '';
+
+      const statusEl   = document.getElementById('r-status');
+      const senderEl   = document.getElementById('r-sender');
+      const whenEl     = document.getElementById('r-when');
+      const metaEl     = document.getElementById('r-metadata');
+      const sealEl     = document.getElementById('r-seal');
+
+      statusEl.textContent = 'Querying chain…';
+      senderEl.textContent = '—';
+      whenEl.textContent = '—';
+      metaEl.textContent = '—';
+      sealEl.textContent = '—';
+
+      const provider = new ethers.JsonRpcProvider(RPC[network]);
+      const contract = new ethers.Contract(contractAddr, ABI, provider);
+
+      try {
+        const [proof, isVerified] = await Promise.all([
+          contract.verify(hash),
+          contract.isValidocusVerified(hash),
+        ]);
+
+        if (proof.timestamp === 0n) {
+          statusEl.innerHTML = '<span class="badge bad">Not anchored</span>';
+          sealEl.innerHTML = '<span class="badge bad">No Validocus seal</span>';
+          return;
+        }
+
+        const when = new Date(Number(proof.timestamp) * 1000).toISOString();
+        const link = `${EXPLORER[network]}/address/${proof.sender}`;
+
+        statusEl.innerHTML = '<span class="badge ok">Anchored on-chain</span>';
+        senderEl.innerHTML = `<a href="${link}" target="_blank" rel="noopener">${shortAddr(proof.sender)}</a>`;
+        whenEl.textContent = when;
+        metaEl.innerHTML = proof.metadata
+          ? '<code>' + proof.metadata.replace(/</g, '&lt;') + '</code>'
+          : '<span class="muted">(empty)</span>';
+        sealEl.innerHTML = isVerified
+          ? '<span class="badge ok">✓ Verified by Validocus</span>'
+          : '<span class="badge warn">Anchored by an unverified wallet</span>';
+      } catch (e) {
+        statusEl.innerHTML = '<span class="badge bad">RPC error</span> ' + (e.message || e);
+      }
+    }
+  </script>
+</body>
+</html>

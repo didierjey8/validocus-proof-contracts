@@ -1,0 +1,14 @@
+{
+  "name": "validocus-proof-api-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal read-only verification API for ValidocusProofRegistry.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ethers": "^6.13.1",
+    "express": "^4.19.2"
+  }
+}
