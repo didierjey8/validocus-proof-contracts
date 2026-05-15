@@ -123,7 +123,7 @@ function register(bytes32 documentHash, string calldata metadata) external;
 
 Anyone can call. Reverts on `EmptyHash`, `MetadataTooLarge`,
 `AlreadyAnchored` (the hash already has an anchor), or `EnforcedPause`.
-Metadata is bounded to 256 bytes.
+Metadata is bounded to 1024 bytes.
 
 ### Read
 

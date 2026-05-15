@@ -47,9 +47,10 @@ contract ValidocusProofRegistry is Ownable, Pausable {
     // ─────────────────────────────────────────────────────────────────────
 
     /// @notice Maximum metadata string length in bytes. Keeps gas predictable.
-    ///         Larger payloads should be stored off-chain (IPFS/S3) with a
-    ///         CID or URL referenced inside `metadata`.
-    uint256 public constant MAX_METADATA_BYTES = 256;
+    ///         1024 bytes fits long human-readable narratives plus structured
+    ///         JSON. Larger payloads should be stored off-chain (IPFS/S3)
+    ///         with a CID or URL referenced inside `metadata`.
+    uint256 public constant MAX_METADATA_BYTES = 1024;
 
     // ─────────────────────────────────────────────────────────────────────
     // Types
@@ -61,8 +62,9 @@ contract ValidocusProofRegistry is Ownable, Pausable {
      * @param timestamp Block timestamp when the proof was registered.
      *                  uint64 supports dates up to year ~584 billion AD.
      *                  Packs into the same slot as `sender`.
-     * @param metadata  Application-specific data (typically JSON), bounded
-     *                  to MAX_METADATA_BYTES bytes. Empty string allowed.
+     * @param metadata  Application-specific data (JSON or narrative text),
+     *                  bounded to MAX_METADATA_BYTES (1024) bytes. Empty
+     *                  string allowed.
      */
     struct Proof {
         address sender;
